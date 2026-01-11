@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../models/tenant.dart';
 import '../../models/room.dart';
-import '../../data/storage_service.dart';
+import '../../data/json_storage_service.dart';
+import '../widgets/index.dart';
 
 class BookTenantScreen extends StatefulWidget {
-  final StorageService storageService;
+  final JsonStorageService storageService;
   const BookTenantScreen({Key? key, required this.storageService})
       : super(key: key);
 
@@ -99,7 +100,7 @@ class _BookTenantScreenState extends State<BookTenantScreen> {
       rentAmount: selectedRoom.rentAmount,
       deposit: selectedRoom.deposit,
       status: 'Occupied',
-      currentTenant: tenant.name,
+      currentTenant: tenant.id,
     );
 
     widget.storageService.addTenant(tenant).then((_) {
@@ -111,34 +112,14 @@ class _BookTenantScreenState extends State<BookTenantScreen> {
 
   Widget _buildTextField(String label, String icon, TextEditingController controller,
       {String? Function(String?)? validator, TextInputType keyboardType = TextInputType.text}) {
-    return TextFormField(
+    return buildTextField(
       controller: controller,
+      label: label,
+      hint: label,
+      icon: icon,
       keyboardType: keyboardType,
-      validator: validator ?? (value) {
-        if (value?.isEmpty ?? true) return '$label is required';
-        return null;
-      },
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: SvgPicture.asset(
-            icon,
-            width: 24,
-            height: 24,
-          ),
-        ),
-        prefixIconConstraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(20),
-          borderSide: const BorderSide(color: Colors.grey),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(20),
-          borderSide: const BorderSide(color: Color(0xFF56CCF2), width: 2),
-        ),
-      ),
+      validator: validator,
+      isSvg: true,
     );
   }
 

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../models/tenant.dart';
-import '../../data/storage_service.dart';
+import '../../data/json_storage_service.dart';
 import 'add_tenant_screen.dart';
 
 class TenantDetailsScreen extends StatefulWidget {
-  final StorageService storageService;
+  final JsonStorageService storageService;
   final String tenantId;
 
   const TenantDetailsScreen({
@@ -33,7 +34,7 @@ class _TenantDetailsScreenState extends State<TenantDetailsScreen> {
   Future<Tenant?> _getTenantById(String tenantId) async {
     final tenants = await widget.storageService.getTenants();
     try {
-      return tenants.firstWhere((t) => t.name == tenantId);
+      return tenants.firstWhere((t) => t.id == tenantId);
     } catch (e) {
       return null;
     }
@@ -41,73 +42,164 @@ class _TenantDetailsScreenState extends State<TenantDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Tenant Details'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: FutureBuilder<Tenant?>(
-        future: _tenantFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+    return FutureBuilder<Tenant?>(
+      future: _tenantFuture,
+      builder: (context, snapshot) {
+        return Scaffold(
+          backgroundColor: Colors.white,
+          appBar: AppBar(
+            title: const Text('Tenants Detail'),
+            backgroundColor: Colors.white,
+            elevation: 0,
+            titleTextStyle: const TextStyle(
+              color: Colors.black,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.black),
+              onPressed: () => Navigator.pop(context, false),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.edit, color: Colors.black),
+                onPressed: () {
+                  if (snapshot.hasData && snapshot.data != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AddTenantScreen(
+                          storageService: widget.storageService,
+                          tenantToEdit: snapshot.data!,
+                        ),
+                      ),
+                    ).then((_) {
+                      setState(() {
+                        _loadTenant();
+                      });
+                    }).then((_) {
+                      // Return true to indicate tenant was updated
+                      Navigator.pop(context, true);
+                    });
+                  }
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: () {
+                  if (snapshot.hasData && snapshot.data != null) {
+                    _showDeleteConfirmation(snapshot.data!);
+                  }
+                },
+              ),
+            ],
+          ),
+          body: _buildBody(snapshot),
+        );
+      },
+    );
+  }
 
-          if (!snapshot.hasData || snapshot.data == null) {
-            return const Center(
-              child: Text('Tenant not found'),
-            );
-          }
+  Widget _buildBody(AsyncSnapshot<Tenant?> snapshot) {
+    if (snapshot.connectionState == ConnectionState.waiting) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-          final tenant = snapshot.data!;
+    if (!snapshot.hasData || snapshot.data == null) {
+      return const Center(
+        child: Text('Tenant not found'),
+      );
+    }
 
-          return SingleChildScrollView(
+    final tenant = snapshot.data!;
+
+    // Calculate renting duration
+    final now = DateTime.now();
+    final rentalMonths = (now.year - tenant.moveInDate.year) * 12 +
+        (now.month - tenant.moveInDate.month);
+
+    return SingleChildScrollView(
             child: Padding(
               padding: const EdgeInsets.all(20.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header Card
+                  // Tenant Name
+                  Center(
+                    child: Text(
+                      tenant.name,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+
+                  // Contact Information Section
+                  const Text(
+                    'Contact Information',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildContactCard(Icons.phone, 'Phone', tenant.phone),
+
+                  const SizedBox(height: 30),
+
+                  // Rental Information Section
+                  const Text(
+                    'Rental Information',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildRentalCard('Room Number', tenant.assignedRoom, isSvg: true, svgPath: 'assets/Icons/Rooms.svg'),
+                  const SizedBox(height: 12),
+                  _buildRentalCard('National ID', tenant.nationalId, icon: Icons.badge),
+                  const SizedBox(height: 12),
+                  _buildRentalCard('Deposit', '\$${tenant.deposit.toStringAsFixed(2)}', icon: Icons.attach_money),
+                  const SizedBox(height: 12),
+                  _buildRentalCard('Start Date', tenant.moveInDate.toString().split(' ')[0], icon: Icons.calendar_today),
+
+
+                  const SizedBox(height: 30),
+
+                  // Renting Duration Chip
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF56CCF2).withOpacity(0.1),
+                      color: const Color(0xFF56CCF2),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Row(
                       children: [
-                        Row(
+                        const Icon(Icons.schedule, color: Colors.white, size: 24),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.person, size: 40, color: Color(0xFF56CCF2)),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    tenant.name,
-                                    style: const TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Room: ${tenant.assignedRoom}',
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                ],
+                            const Text(
+                              'Renting Duration',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            Text(
+                              '$rentalMonths months',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ],
@@ -115,127 +207,96 @@ class _TenantDetailsScreenState extends State<TenantDetailsScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
 
-                  // Details Section
-                  const Text(
-                    'Personal Information',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildDetailCard('Phone', tenant.phone, Icons.phone),
-                  _buildDetailCard('National ID', tenant.nationalId, Icons.credit_card),
-                  _buildDetailCard('Deposit Amount', '\$${tenant.deposit.toStringAsFixed(2)}', Icons.money),
-
-                  const SizedBox(height: 24),
-
-                  // Tenancy Information
-                  const Text(
-                    'Tenancy Information',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildDetailCard(
-                    'Move-In Date',
-                    tenant.moveInDate.toString().split(' ')[0],
-                    Icons.calendar_today,
-                  ),
-                  if (tenant.moveOutDate != null)
-                    _buildDetailCard(
-                      'Move-Out Date',
-                      tenant.moveOutDate.toString().split(' ')[0],
-                      Icons.calendar_today,
-                    ),
-
-                  const SizedBox(height: 30),
-
-                  // Action Buttons
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => AddTenantScreen(
-                                  storageService: widget.storageService,
-                                  tenantToEdit: tenant,
-                                ),
-                              ),
-                            ).then((_) {
-                              setState(() {
-                                _loadTenant();
-                              });
-                            });
-                          },
-                          icon: const Icon(Icons.edit),
-                          label: const Text('Edit'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () => _showDeleteConfirmation(tenant),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                          ),
-                          icon: const Icon(Icons.delete),
-                          label: const Text('Delete'),
-                        ),
-                      ),
-                    ],
-                  ),
+                  const SizedBox(height: 40),
                 ],
               ),
             ),
           );
-        },
-      ),
-    );
-  }
+      }
 
-  Widget _buildDetailCard(String label, String value, IconData icon) {
+  Widget _buildContactCard(IconData icon, String label, String value) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey[200]!),
       ),
       child: Row(
         children: [
-          Icon(icon, color: const Color(0xFF56CCF2), size: 24),
+          Icon(icon, color: Colors.grey[600], size: 24),
           const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
-                  ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w500,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
                 ),
-              ],
-            ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRentalCard(String label, String value, {bool isSvg = false, String? svgPath, IconData? icon}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Row(
+        children: [
+          if (isSvg && svgPath != null)
+            SvgPicture.asset(
+              svgPath,
+              width: 24,
+              height: 24,
+              colorFilter: ColorFilter.mode(Colors.grey[600]!, BlendMode.srcIn),
+            )
+          else if (icon != null)
+            Icon(icon, color: Colors.grey[600], size: 24)
+          else
+            Icon(Icons.info, color: Colors.grey[600], size: 24),
+          const SizedBox(width: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -245,23 +306,25 @@ class _TenantDetailsScreenState extends State<TenantDetailsScreen> {
   void _showDeleteConfirmation(Tenant tenant) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Delete Tenant'),
         content: Text('Are you sure you want to delete ${tenant.name}?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              widget.storageService.deleteTenant(tenant.id).then((_) {
-                Navigator.pop(context);
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Tenant deleted successfully!')),
-                );
-              });
+            onPressed: () async {
+              await widget.storageService.deleteTenant(tenant.id);
+              Navigator.pop(dialogContext);
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Tenant deleted successfully!'),
+                  backgroundColor: Colors.green,
+                ),
+              );
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Delete', style: TextStyle(color: Colors.white)),

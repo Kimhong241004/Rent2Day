@@ -3,10 +3,10 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:uuid/uuid.dart';
 import '../../models/payment.dart';
 import '../../models/room.dart';
-import '../../data/storage_service.dart';
+import '../../data/json_storage_service.dart';
 
 class AddPaymentScreen extends StatefulWidget {
-  final StorageService storageService;
+  final JsonStorageService storageService;
   const AddPaymentScreen({Key? key, required this.storageService})
       : super(key: key);
 
@@ -20,6 +20,7 @@ class _AddPaymentScreenState extends State<AddPaymentScreen> {
   bool _markAsPaid = false;
   bool _isLoading = false;
   List<Room> _availableRooms = [];
+  DateTime _selectedPaymentDate = DateTime.now();
 
   @override
   void initState() {
@@ -34,7 +35,7 @@ class _AddPaymentScreenState extends State<AddPaymentScreen> {
     });
   }
 
-  void _savePayment() {
+  void _savePayment() async {
     if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a room')),
@@ -50,13 +51,25 @@ class _AddPaymentScreenState extends State<AddPaymentScreen> {
       orElse: () => _availableRooms.first,
     );
 
+    // Get tenant name from ID
+    String tenantName = 'No Tenant';
+    if (selectedRoom.currentTenant != null) {
+      try {
+        final tenants = await widget.storageService.getTenants();
+        final tenant = tenants.firstWhere((t) => t.id == selectedRoom.currentTenant);
+        tenantName = tenant.name;
+      } catch (e) {
+        tenantName = 'Unknown Tenant';
+      }
+    }
+
     final payment = Payment(
       id: const Uuid().v4(),
       roomNumber: selectedRoom.roomNumber,
-      tenantName: selectedRoom.currentTenant ?? 'No Tenant',
+      tenantName: tenantName,
       tenantPhone: '000 000 000',
       amount: 0,
-      date: DateTime.now(),
+      date: _selectedPaymentDate,
       isPaid: _markAsPaid,
     );
 
@@ -136,6 +149,40 @@ class _AddPaymentScreenState extends State<AddPaymentScreen> {
                   }
                   return null;
                 },
+              ),
+              const SizedBox(height: 20),
+              // Select Rent Payment Date
+              GestureDetector(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: _selectedPaymentDate,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime(2030),
+                  );
+                  if (picked != null) {
+                    setState(() {
+                      _selectedPaymentDate = picked;
+                    });
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.calendar_today, color: Color(0xFF56CCF2)),
+                      const SizedBox(width: 12),
+                      Text(
+                        '${_selectedPaymentDate.day}/${_selectedPaymentDate.month}/${_selectedPaymentDate.year}',
+                        style: const TextStyle(fontSize: 16, color: Colors.black),
+                      ),
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(height: 20),
               // Mark as Paid Checkbox

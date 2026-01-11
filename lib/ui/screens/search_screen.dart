@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../models/room.dart';
 import '../../models/tenant.dart';
-import '../../data/storage_service.dart';
+import '../../data/json_storage_service.dart';
 import 'add_room_screen.dart';
 import 'add_tenant_screen.dart';
 
 class SearchScreen extends StatefulWidget {
-  final StorageService storageService;
+  final JsonStorageService storageService;
   const SearchScreen({Key? key, required this.storageService})
       : super(key: key);
 
@@ -59,31 +59,26 @@ class _SearchScreenState extends State<SearchScreen>
     bool showTenantsMode = _tabController.index == 4;
 
     setState(() {
-      if (showTenantsMode) {
-        // In Tenants mode, search for tenants by name
-        if (query.isNotEmpty) {
-          _searchedTenants = allTenants
-              .where((tenant) => tenant.name.toLowerCase().contains(query))
-              .toList();
-        } else {
-          _searchedTenants = allTenants;
-        }
+      // Common: Search tenants by name (used in both modes)
+      if (query.isNotEmpty) {
+        _searchedTenants = allTenants
+            .where((tenant) => tenant.name.toLowerCase().contains(query))
+            .toList();
       } else {
-        // In Rooms mode, search for rooms
-        if (query.isNotEmpty) {
-          _searchedTenants = allTenants
-              .where((tenant) => tenant.name.toLowerCase().contains(query))
-              .toList();
+        _searchedTenants = showTenantsMode ? allTenants : [];
+      }
 
-          final matchingTenants = _searchedTenants
-              .map((tenant) => tenant.name)
-              .toSet();
-          
-          if (matchingTenants.isNotEmpty) {
-            _selectedTenants = matchingTenants;
-          }
-        } else {
-          _searchedTenants = [];
+      if (showTenantsMode) {
+        // In Tenants mode, display search results
+      } else {
+        // In Rooms mode, use tenant IDs to filter rooms
+        final matchingTenantIds = _searchedTenants
+            .map((tenant) => tenant.id)
+            .toSet();
+        
+        if (matchingTenantIds.isNotEmpty) {
+          _selectedTenants = matchingTenantIds;
+        } else if (query.isEmpty) {
           _selectedTenants.clear();
         }
 
@@ -96,7 +91,7 @@ class _SearchScreenState extends State<SearchScreen>
           final matchesFilter =
               _selectedFilter.isEmpty || _selectedFilter == 'All' || room.status == _selectedFilter;
 
-          // Filter by tenant
+          // Filter by tenant (using tenant ID)
           final matchesTenant = _selectedTenants.isEmpty || 
               (room.currentTenant != null && _selectedTenants.contains(room.currentTenant));
 
@@ -110,12 +105,6 @@ class _SearchScreenState extends State<SearchScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Search'),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
       body: FutureBuilder<List<Room>>(
         future: _allRoomsFuture,
         builder: (context, snapshot) {
@@ -215,10 +204,10 @@ class _SearchScreenState extends State<SearchScreen>
             ),
             const SizedBox(height: 12),
             ..._searchedTenants.map((tenant) {
-              // Find all rooms where this tenant is assigned
+              // Find all rooms where this tenant is assigned (using tenant ID)
               final allRooms = snapshot.data ?? [];
               final tenantRooms = allRooms
-                  .where((room) => room.currentTenant == tenant.name)
+                  .where((room) => room.currentTenant == tenant.id)
                   .toList();
               
               return Container(

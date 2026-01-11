@@ -6,7 +6,7 @@ class Room {
   final double rentAmount;
   final double deposit; // Deposit required for the room
   final String status; // "Available", "Occupied", "Maintenance"
-  final String? currentTenant;
+  final String? currentTenant; // Tenant ID (not name)
 
   Room({
     required this.id,

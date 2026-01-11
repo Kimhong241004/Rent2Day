@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../models/room.dart';
-import '../../data/storage_service.dart';
+import '../../models/tenant.dart';
+import '../../data/json_storage_service.dart';
+import '../widgets/index.dart';
 import 'add_room_screen.dart';
-import 'room_tenant_details_screen.dart';
+import 'tenant_details_screen.dart';
 
 class RoomsScreen extends StatefulWidget {
-  final StorageService storageService;
+  final JsonStorageService storageService;
   const RoomsScreen({Key? key, required this.storageService}) : super(key: key);
 
   @override
@@ -14,35 +16,45 @@ class RoomsScreen extends StatefulWidget {
 }
 
 class _RoomsScreenState extends State<RoomsScreen> {
-  late Future<List<Room>> _roomsFuture;
+  late Future<Map<String, dynamic>> _roomsAndTenantsFuture;
   String _selectedFloor = 'All'; // Filter by floor
 
   @override
   void initState() {
     super.initState();
-    _loadRooms();
+    _loadRoomsAndTenants();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _loadRooms(); // Refresh rooms every time screen is shown
+    _loadRoomsAndTenants(); // Refresh rooms every time screen is shown
   }
 
-  void _loadRooms() {
-    _roomsFuture = widget.storageService.getRooms();
+  void _loadRoomsAndTenants() {
+    _roomsAndTenantsFuture = _loadData();
+  }
+
+  Future<Map<String, dynamic>> _loadData() async {
+    final rooms = await widget.storageService.getRooms();
+    final tenants = await widget.storageService.getTenants();
+    return {'rooms': rooms, 'tenants': tenants};
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<Room>>(
-      future: _roomsFuture,
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _roomsAndTenantsFuture,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        List<Room> rooms = snapshot.data ?? [];
+        List<Room> rooms = snapshot.data?['rooms'] ?? [];
+        List<Tenant> tenants = snapshot.data?['tenants'] ?? [];
+
+        // Create a map for quick tenant lookup
+        final tenantMap = {for (var tenant in tenants) tenant.id: tenant};
 
         // Group rooms by floor
         Map<String, List<Room>> roomsByFloor = {};
@@ -67,74 +79,57 @@ class _RoomsScreenState extends State<RoomsScreen> {
 
         return Scaffold(
           backgroundColor: Colors.white,
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            title: const Text('Rooms Dashboard', style: TextStyle(color: Colors.black, fontSize: 26, fontWeight: FontWeight.w600)),
+          ),
           body: SingleChildScrollView(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Center(
-                    child: Text(
-                      'Rooms Dashboard',
-                      style: TextStyle(fontSize: 26, fontWeight: FontWeight.w600),
-                    ),
-                  ),
                   const SizedBox(height: 20),
-                  // Floor Filter
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Floor',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 8),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            ...floorOptions.map((floor) {
-                              bool isSelected = _selectedFloor == floor;
-                              return Padding(
-                                padding: const EdgeInsets.only(right: 24.0),
-                                child: GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      _selectedFloor = floor;
-                                    });
-                                  },
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        floor,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: isSelected ? const Color(0xFF56CCF2) : Colors.grey[600]!,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Container(
-                                        height: isSelected ? 3 : 0,
-                                        width: 45,
-                                        decoration: const BoxDecoration(
-                                          color: Color(0xFF56CCF2),
-                                          borderRadius: BorderRadius.only(
-                                            topLeft: Radius.circular(1.5),
-                                            topRight: Radius.circular(1.5),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+                  // Floor Filter - Simple Tap Buttons
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        ...floorOptions.map((floor) {
+                          bool isSelected = _selectedFloor == floor;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 12.0),
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _selectedFloor = floor;
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: isSelected ? const Color(0xFF56CCF2) : Colors.grey[100],
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: isSelected ? const Color(0xFF56CCF2) : Colors.grey[300]!,
+                                    width: 1.5,
                                   ),
                                 ),
-                              );
-                            }).toList(),
-                          ],
-                        ),
-                      ),
-                    ],
+                                child: Text(
+                                  floor,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: isSelected ? Colors.white : Colors.grey[700],
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 20),
                 if (rooms.isEmpty)
@@ -196,7 +191,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
                           }
 
                           return GestureDetector(
-                            onTap: () => _showRoomDetails(room),
+                            onTap: () => _showRoomDetails(room, tenantMap),
                             child: Container(
                               margin: const EdgeInsets.only(bottom: 12.0),
                               padding: const EdgeInsets.all(16.0),
@@ -253,7 +248,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
                                           Padding(
                                             padding: const EdgeInsets.only(top: 4.0),
                                             child: Text(
-                                              room.currentTenant ?? '',
+                                              tenantMap[room.currentTenant]?.name ?? 'Unknown Tenant',
                                               style: const TextStyle(
                                                 fontSize: 12,
                                                 color: Colors.grey,
@@ -303,13 +298,13 @@ class _RoomsScreenState extends State<RoomsScreen> {
     ).then((result) {
       if (result == true) {
         setState(() {
-          _roomsFuture = widget.storageService.getRooms();
+          _loadRoomsAndTenants();
         });
       }
     });
   }
 
-  void _showRoomDetails(Room room) {
+  void _showRoomDetails(Room room, Map<String, Tenant> tenantMap) {
     showModalBottomSheet(
       context: context,
       builder: (context) => Container(
@@ -346,7 +341,10 @@ class _RoomsScreenState extends State<RoomsScreen> {
                       Text('Current Tenant:', style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.grey)),
                       Row(
                         children: [
-                          Text(room.currentTenant!, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF56CCF2))),
+                          Text(
+                            tenantMap[room.currentTenant]?.name ?? 'Unknown Tenant',
+                            style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF56CCF2)),
+                          ),
                           const SizedBox(width: 4),
                           const Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xFF56CCF2)),
                         ],
@@ -372,7 +370,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
                         ),
                       ).then((_) {
                         setState(() {
-                          _roomsFuture = widget.storageService.getRooms();
+                          _loadRoomsAndTenants();
                         });
                       });
                     },
@@ -398,34 +396,44 @@ class _RoomsScreenState extends State<RoomsScreen> {
     );
   }
 
-  void _openTenantScreen(Room room) {
-    // Navigate to room and tenant details screen
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => RoomTenantDetailsScreen(
-          storageService: widget.storageService,
-          room: room,
+  void _openTenantScreen(Room room) async {
+    // Get the tenant using the tenant ID
+    if (room.currentTenant == null || room.currentTenant!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No tenant assigned to this room')),
+      );
+      return;
+    }
+    
+    final tenants = await widget.storageService.getTenants();
+    try {
+      final tenant = tenants.firstWhere(
+        (t) => t.id == room.currentTenant,
+      );
+      
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => TenantDetailsScreen(
+            storageService: widget.storageService,
+            tenantId: tenant.id,
+          ),
         ),
-      ),
-    ).then((_) {
-      setState(() {
-        _roomsFuture = widget.storageService.getRooms();
+      ).then((_) {
+        setState(() {
+          _loadRoomsAndTenants();
+        });
       });
-    });
+    } catch (e) {
+      // Tenant not found
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Tenant not found: ${room.currentTenant}')),
+      );
+    }
   }
 
   Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.grey)),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
-        ],
-      ),
-    );
+    return buildDetailRow(label, value);
   }
 
   void _showDeleteConfirmation(Room room) {
@@ -440,7 +448,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
             onPressed: () {
               widget.storageService.deleteRoom(room.id).then((_) {
                 setState(() {
-                  _roomsFuture = widget.storageService.getRooms();
+                  _loadRoomsAndTenants();
                 });
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(

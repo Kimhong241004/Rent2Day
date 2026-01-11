@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../models/payment.dart';
-import '../../data/storage_service.dart';
+import '../../data/json_storage_service.dart';
 import 'add_payment_screen.dart';
 
 class PaymentsScreen extends StatefulWidget {
-  final StorageService storageService;
+  final JsonStorageService storageService;
   const PaymentsScreen({Key? key, required this.storageService}) : super(key: key);
 
   @override
@@ -88,10 +88,6 @@ class _PaymentsScreenState extends State<PaymentsScreen>
 
         return Scaffold(
           backgroundColor: Colors.white,
-          appBar: AppBar(
-            backgroundColor: Colors.white,
-            elevation: 0,
-          ),
           body: SingleChildScrollView(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
@@ -125,9 +121,12 @@ class _PaymentsScreenState extends State<PaymentsScreen>
                           ),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                            child: Text(
-                              '${_monthName(_currentMonth.month)} ${_currentMonth.year}',
-                              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
+                            child: GestureDetector(
+                              onTap: _showMonthYearPicker,
+                              child: Text(
+                                '${_monthName(_currentMonth.month)} ${_currentMonth.year}',
+                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
+                              ),
                             ),
                           ),
                           GestureDetector(
@@ -349,5 +348,20 @@ class _PaymentsScreenState extends State<PaymentsScreen>
   String _monthName(int month) {
     final months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     return months[month - 1];
+  }
+
+  void _showMonthYearPicker() async {
+    final selectedDate = await showDatePicker(
+      context: context,
+      initialDate: _currentMonth,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+    );
+    
+    if (selectedDate != null) {
+      setState(() {
+        _currentMonth = DateTime(selectedDate.year, selectedDate.month);
+      });
+    }
   }
 }

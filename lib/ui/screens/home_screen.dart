@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import '../../data/storage_service.dart';
+import '../../data/json_storage_service.dart';
 import 'rooms_screen.dart';
 import 'search_screen.dart';
 import 'tenants_screen.dart';
 import 'payments_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  final StorageService storageService;
+  final JsonStorageService storageService;
   const HomeScreen({Key? key, required this.storageService}) : super(key: key);
 
   @override
@@ -98,17 +98,13 @@ class _HomeScreenState extends State<HomeScreen> {
           ? RoomsScreen(storageService: widget.storageService)
           : _selectedIndex == 3
           ? TenantsScreen(storageService: widget.storageService)
-          : _selectedIndex == 4
-          ? PaymentsScreen(storageService: widget.storageService)
-          : _buildPlaceholder(),
+          : PaymentsScreen(storageService: widget.storageService),
       bottomNavigationBar: Container(
+        margin: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
         padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: const BoxDecoration(
           color: Color(0xFF56CCF2),
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(30),
-            topRight: Radius.circular(30),
-          ),
+          borderRadius: BorderRadius.all(Radius.circular(30)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -229,36 +225,66 @@ class _HomeScreenState extends State<HomeScreen> {
   // Helper for Nav Items
   Widget _buildNavItem(int index, String iconPath, String label) {
     bool isSelected = _selectedIndex == index;
-    return GestureDetector(
-      onTap: () {
-        setState(() => _selectedIndex = index);
-        // Refresh dashboard data when returning to it
-        if (index == 0) {
-          _loadDashboardData();
-        }
-      },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SvgPicture.asset(
-            iconPath,
-            width: 28,
-            height: 28,
-            colorFilter: ColorFilter.mode(
-              isSelected ? Colors.white : Colors.black,
-              BlendMode.srcIn,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          setState(() => _selectedIndex = index);
+          // Refresh dashboard data when returning to it
+          if (index == 0) {
+            _loadDashboardData();
+          }
+        },
+        splashColor: Colors.white.withOpacity(0.3),
+        highlightColor: Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(16),
+        child: AnimatedScale(
+          scale: isSelected ? 1.1 : 1.0,
+          duration: const Duration(milliseconds: 300),
+          child: AnimatedOpacity(
+            opacity: isSelected ? 1.0 : 0.7,
+            duration: const Duration(milliseconds: 300),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isSelected ? Colors.white.withOpacity(0.2) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ]
+                        : [],
+                  ),
+                  child: SvgPicture.asset(
+                    iconPath,
+                    width: 28,
+                    height: 28,
+                    colorFilter: ColorFilter.mode(
+                      isSelected ? Colors.white : Colors.black,
+                      BlendMode.srcIn,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : Colors.black,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? Colors.white : Colors.black,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              fontSize: 12,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -307,5 +333,4 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildPlaceholder() => const Center(child: Text("Coming Soon..."));
 }

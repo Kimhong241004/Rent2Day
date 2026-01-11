@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'ui/screens/home_screen.dart';
-import 'data/storage_service.dart';
+import 'data/json_storage_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final storageService = StorageService();
+  final storageService = JsonStorageService();
   await storageService.init();
   runApp(RentManagerApp(storageService: storageService));
 }
 
 class RentManagerApp extends StatelessWidget {
-  final StorageService storageService;
+  final JsonStorageService storageService;
   const RentManagerApp({Key? key, required this.storageService}) : super(key: key);
 
   @override

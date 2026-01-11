@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../models/room.dart';
 import '../../models/tenant.dart';
-import '../../data/storage_service.dart';
+import '../../data/json_storage_service.dart';
 import 'add_tenant_screen.dart';
 
 class RoomTenantDetailsScreen extends StatefulWidget {
-  final StorageService storageService;
+  final JsonStorageService storageService;
   final Room room;
 
   const RoomTenantDetailsScreen({
@@ -28,14 +28,14 @@ class _RoomTenantDetailsScreenState extends State<RoomTenantDetailsScreen> {
   }
 
   void _loadTenant() {
-    _tenantFuture = _getTenantByName(widget.room.currentTenant ?? '');
+    _tenantFuture = _getTenantById(widget.room.currentTenant ?? '');
   }
 
-  Future<Tenant?> _getTenantByName(String tenantName) async {
-    if (tenantName.isEmpty) return null;
+  Future<Tenant?> _getTenantById(String tenantId) async {
+    if (tenantId.isEmpty) return null;
     final tenants = await widget.storageService.getTenants();
     try {
-      return tenants.firstWhere((t) => t.name == tenantName);
+      return tenants.firstWhere((t) => t.id == tenantId);
     } catch (e) {
       return null;
     }
@@ -97,6 +97,8 @@ class _RoomTenantDetailsScreenState extends State<RoomTenantDetailsScreen> {
                             setState(() {
                               _loadTenant();
                             });
+                            // Notify parent screen to refresh
+                            Navigator.pop(context, true);
                           }
                         });
                       },

@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../models/tenant.dart';
-import '../../data/storage_service.dart';
+import '../../data/json_storage_service.dart';
 import 'add_tenant_screen.dart';
 import 'book_tenant_screen.dart';
+import 'tenant_details_screen.dart';
 
 class TenantsScreen extends StatefulWidget {
-  final StorageService storageService;
+  final JsonStorageService storageService;
   const TenantsScreen({Key? key, required this.storageService})
       : super(key: key);
 
@@ -36,10 +37,6 @@ class _TenantsScreenState extends State<TenantsScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-      ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: Column(
@@ -118,12 +115,12 @@ class _TenantsScreenState extends State<TenantsScreen>
   Widget _buildActiveTenants() {
     return FutureBuilder<List<Tenant>>(
       future: _tenantsFuture,
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
+      builder: (context, tenantSnapshot) {
+        if (!tenantSnapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        List<Tenant> tenants = snapshot.data ?? [];
+        List<Tenant> tenants = tenantSnapshot.data ?? [];
         
         // Filter tenants with past or current move-in date (already renting)
         final now = DateTime.now();
@@ -150,19 +147,106 @@ class _TenantsScreenState extends State<TenantsScreen>
           );
         }
 
-        return ListView.builder(
-          itemCount: currentTenants.length,
-          itemBuilder: (context, index) {
-            final tenant = currentTenants[index];
-            return ListTile(
-              leading: CircleAvatar(
-                child: Text(tenant.name[0]),
-              ),
-              title: Text(tenant.name),
-              subtitle: Text('${tenant.phone} • Room ${tenant.assignedRoom}'),
-              trailing: const Icon(Icons.arrow_forward_ios),
-              onTap: () {
-                // Show tenant details
+        // Fetch rooms to get floor info
+        return FutureBuilder<List>(
+          future: widget.storageService.getRooms(),
+          builder: (context, roomSnapshot) {
+            final rooms = roomSnapshot.data ?? [];
+
+            return ListView.builder(
+              itemCount: currentTenants.length,
+              itemBuilder: (context, index) {
+                final tenant = currentTenants[index];
+                // Find the room for this tenant to get floor
+                dynamic room;
+                try {
+                  room = rooms.firstWhere(
+                    (r) => r.roomNumber == tenant.assignedRoom,
+                  );
+                } catch (e) {
+                  room = null;
+                }
+                final floor = room?.floor ?? 'N/A';
+
+                return ListTile(
+                  leading: CircleAvatar(
+                    child: Text(tenant.name[0]),
+                  ),
+                  title: Text(tenant.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  subtitle: Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      SizedBox(
+                        height: 20,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SvgPicture.asset(
+                              'assets/Icons/Phone.svg',
+                              width: 16,
+                              height: 16,
+                              colorFilter: const ColorFilter.mode(Colors.grey, BlendMode.srcIn),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(tenant.phone, style: const TextStyle(fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                      SizedBox(
+                        height: 20,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SvgPicture.asset(
+                              'assets/Icons/Rooms.svg',
+                              width: 16,
+                              height: 16,
+                              colorFilter: const ColorFilter.mode(Colors.grey, BlendMode.srcIn),
+                            ),
+                            const SizedBox(width: 4),
+                            Text('Room ${tenant.assignedRoom}', style: const TextStyle(fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                      SizedBox(
+                        height: 20,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SvgPicture.asset(
+                              'assets/Icons/Floor.svg',
+                              width: 16,
+                              height: 16,
+                              colorFilter: const ColorFilter.mode(Colors.grey, BlendMode.srcIn),
+                            ),
+                            const SizedBox(width: 4),
+                            Text('Floor $floor', style: const TextStyle(fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  trailing: const Icon(Icons.arrow_forward_ios),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => TenantDetailsScreen(
+                          storageService: widget.storageService,
+                          tenantId: tenant.id,
+                        ),
+                      ),
+                    ).then((result) {
+                      // If tenant was edited, refresh the data
+                      if (result == true) {
+                        setState(() {
+                          _tenantsFuture = widget.storageService.getTenants();
+                        });
+                      }
+                    });
+                  },
+                );
               },
             );
           },

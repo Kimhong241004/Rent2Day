@@ -3,10 +3,11 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:uuid/uuid.dart';
 import '../../models/tenant.dart';
 import '../../models/room.dart';
-import '../../data/storage_service.dart';
+import '../../data/json_storage_service.dart';
+import '../widgets/index.dart';
 
 class AddTenantScreen extends StatefulWidget {
-  final StorageService storageService;
+  final JsonStorageService storageService;
   final Tenant? tenantToEdit;
   const AddTenantScreen({
     Key? key,
@@ -28,6 +29,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
   late bool _isEditMode;
   bool _isLoading = false;
   List<Room> _availableRooms = [];
+  DateTime _selectedMoveInDate = DateTime.now();
 
   @override
   void initState() {
@@ -38,8 +40,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
     _phoneCtrl = TextEditingController();
     _depositCtrl = TextEditingController();
 
-    _loadRooms();
-
+    // Set tenant data first if editing
     if (_isEditMode && widget.tenantToEdit != null) {
       final tenant = widget.tenantToEdit!;
       _nameCtrl.text = tenant.name;
@@ -47,7 +48,11 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
       _phoneCtrl.text = tenant.phone;
       _depositCtrl.text = tenant.deposit.toString();
       _selectedRoom = tenant.assignedRoom;
+      _selectedMoveInDate = tenant.moveInDate;
     }
+
+    // Then load rooms
+    _loadRooms();
   }
 
   @override
@@ -61,7 +66,13 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
     final tenants = await widget.storageService.getTenants();
     
     // Filter out rooms that already have active tenants
+    // But include the current room if we're editing
     final availableRooms = rooms.where((room) {
+      // If editing, always include the current room
+      if (_isEditMode && _selectedRoom == room.roomNumber) {
+        return true;
+      }
+      
       // Check if this room has an active tenant (tenant without moveOutDate)
       final hasActiveTenant = tenants.any((tenant) =>
           tenant.assignedRoom == room.roomNumber &&
@@ -173,6 +184,15 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
                 },
               ),
               const SizedBox(height: 16),
+              // Move-In Date Field
+              _buildDateField(
+                label: 'Move-In Date',
+                selectedDate: _selectedMoveInDate,
+                onDateSelected: (newDate) {
+                  setState(() => _selectedMoveInDate = newDate);
+                },
+              ),
+              const SizedBox(height: 16),
               // Assign Rooms Dropdown
               _buildRoomDropdown(),
               const SizedBox(height: 40),
@@ -196,7 +216,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
                           child: CircularProgressIndicator(
                             valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                             strokeWidth: 2,
-                          ),
+                         ),
                         )
                       : const Text(
                           'Add Tenants',
@@ -224,39 +244,60 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
     TextInputType keyboardType = TextInputType.text,
     String? Function(String?)? validator,
   }) {
-    return TextFormField(
+    return buildTextField(
       controller: controller,
+      label: label,
+      hint: hint,
+      icon: iconPath,
       keyboardType: keyboardType,
       validator: validator,
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey[400]),
-        prefixIcon: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: SvgPicture.asset(
-            iconPath,
-            width: 24,
-            height: 24,
-            colorFilter: ColorFilter.mode(Colors.grey[600]!, BlendMode.srcIn),
-          ),
+      isSvg: true,
+    );
+  }
+
+  Widget _buildDateField({
+    required String label,
+    required DateTime selectedDate,
+    required Function(DateTime) onDateSelected,
+  }) {
+    return GestureDetector(
+      onTap: () async {
+        final picked = await showDatePicker(
+          context: context,
+          initialDate: selectedDate,
+          firstDate: DateTime(2020),
+          lastDate: DateTime.now(),
+        );
+        if (picked != null) {
+          onDateSelected(picked);
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey[300]!),
+          borderRadius: BorderRadius.circular(8),
         ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[300]!),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+            Icon(Icons.calendar_today, color: Colors.grey[400]),
+          ],
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[300]!),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF56CCF2), width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.red),
-        ),
-        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
       ),
     );
   }
@@ -290,7 +331,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
             child: Text('Room ${room.roomNumber}'),
           );
         }).toList(),
-        onChanged: (value) {
+        onChanged: _isEditMode ? null : (value) {
           if (value != null) {
             setState(() {
               _selectedRoom = value;
@@ -337,7 +378,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
           phone: _phoneCtrl.text.trim(),
           deposit: double.parse(_depositCtrl.text.trim()),
           assignedRoom: _selectedRoom,
-          moveInDate: widget.tenantToEdit!.moveInDate,
+          moveInDate: _selectedMoveInDate,
           moveOutDate: widget.tenantToEdit!.moveOutDate,
         );
 
@@ -384,7 +425,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
               rentAmount: newRoom.rentAmount,
               deposit: newRoom.deposit,
               status: 'Occupied',
-              currentTenant: updatedTenant.name,
+              currentTenant: updatedTenant.id,
             );
             await widget.storageService.updateRoom(updatedNewRoom);
           }
@@ -408,7 +449,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
           phone: _phoneCtrl.text.trim(),
           deposit: double.parse(_depositCtrl.text.trim()),
           assignedRoom: _selectedRoom,
-          moveInDate: DateTime.now(),
+          moveInDate: _selectedMoveInDate,
         );
 
         await widget.storageService.addTenant(newTenant);
@@ -429,7 +470,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
             rentAmount: roomToUpdate.rentAmount,
             deposit: roomToUpdate.deposit,
             status: 'Occupied',
-            currentTenant: newTenant.name,
+            currentTenant: newTenant.id,
           );
           await widget.storageService.updateRoom(updatedRoom);
         }
