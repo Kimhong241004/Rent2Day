@@ -33,7 +33,9 @@ class _RoomTenantDetailsScreenState extends State<RoomTenantDetailsScreen> {
 
   Future<Tenant?> _getTenantById(String tenantId) async {
     if (tenantId.isEmpty) return null;
-    final tenants = await widget.storageService.getTenants();
+    // TODO: Replace with actual data source
+    // final tenants = await widget.storageService.getTenants();
+    final tenants = [];
     try {
       return tenants.firstWhere((t) => t.id == tenantId);
     } catch (e) {
@@ -87,9 +89,8 @@ class _RoomTenantDetailsScreenState extends State<RoomTenantDetailsScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => AddTenantScreen(
-                              storageService: widget.storageService,
-                              tenantToEdit: tenant,
+                            // TODO: Replace with actual storage service
+                            builder: (context) => AddTenantScreen(                              storageService: widget.storageService,                              tenantToEdit: tenant,
                             ),
                           ),
                         ).then((result) {
@@ -332,8 +333,9 @@ class _RoomTenantDetailsScreenState extends State<RoomTenantDetailsScreen> {
             onPressed: () async {
               Navigator.pop(context);
               
+              // TODO: Replace with actual save logic
               // Delete tenant
-              await widget.storageService.deleteTenant(tenant.id);
+              // await widget.storageService.deleteTenant(tenant.id);
               
               // Update room to available
               final updatedRoom = Room(
@@ -346,7 +348,7 @@ class _RoomTenantDetailsScreenState extends State<RoomTenantDetailsScreen> {
                 status: 'Available',
                 currentTenant: null,
               );
-              await widget.storageService.updateRoom(updatedRoom);
+              // await widget.storageService.updateRoom(updatedRoom);
               
               if (mounted) {
                 Navigator.pop(context, true);

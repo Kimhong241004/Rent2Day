@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import '../../models/tenant.dart';
 import '../../data/json_storage_service.dart';
 import 'add_tenant_screen.dart';
@@ -28,14 +27,20 @@ class _TenantDetailsScreenState extends State<TenantDetailsScreen> {
   }
 
   void _loadTenant() {
+    debugPrint('===== LOADING TENANT: ${widget.tenantId} =====');
     _tenantFuture = _getTenantById(widget.tenantId);
   }
 
   Future<Tenant?> _getTenantById(String tenantId) async {
+    debugPrint('Fetching tenant with ID: $tenantId');
     final tenants = await widget.storageService.getTenants();
+    debugPrint('Total tenants in storage: ${tenants.length}');
     try {
-      return tenants.firstWhere((t) => t.id == tenantId);
+      final tenant = tenants.firstWhere((t) => t.id == tenantId);
+      debugPrint('Found tenant: ${tenant.name}');
+      return tenant;
     } catch (e) {
+      debugPrint('ERROR: Tenant not found - $e');
       return null;
     }
   }
@@ -101,17 +106,30 @@ class _TenantDetailsScreenState extends State<TenantDetailsScreen> {
   }
 
   Widget _buildBody(AsyncSnapshot<Tenant?> snapshot) {
+    debugPrint('===== BUILDING TENANT DETAILS BODY =====');
+    debugPrint('Connection state: ${snapshot.connectionState}');
+    debugPrint('Has data: ${snapshot.hasData}');
+    debugPrint('Data: ${snapshot.data}');
+    
     if (snapshot.connectionState == ConnectionState.waiting) {
       return const Center(child: CircularProgressIndicator());
     }
 
     if (!snapshot.hasData || snapshot.data == null) {
       return const Center(
-        child: Text('Tenant not found'),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 64, color: Colors.red),
+            SizedBox(height: 16),
+            Text('Tenant not found', style: TextStyle(fontSize: 18)),
+          ],
+        ),
       );
     }
 
     final tenant = snapshot.data!;
+    debugPrint('Displaying tenant: ${tenant.name}');
 
     // Calculate renting duration
     final now = DateTime.now();
@@ -264,17 +282,7 @@ class _TenantDetailsScreenState extends State<TenantDetailsScreen> {
       ),
       child: Row(
         children: [
-          if (isSvg && svgPath != null)
-            SvgPicture.asset(
-              svgPath,
-              width: 24,
-              height: 24,
-              colorFilter: ColorFilter.mode(Colors.grey[600]!, BlendMode.srcIn),
-            )
-          else if (icon != null)
-            Icon(icon, color: Colors.grey[600], size: 24)
-          else
-            Icon(Icons.info, color: Colors.grey[600], size: 24),
+          Icon(icon ?? Icons.info, color: Colors.grey[600], size: 24),
           const SizedBox(width: 16),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -316,7 +324,8 @@ class _TenantDetailsScreenState extends State<TenantDetailsScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
-              await widget.storageService.deleteTenant(tenant.id);
+              // TODO: Replace with actual delete logic
+              // await widget.storageService.deleteTenant(tenant.id);
               Navigator.pop(dialogContext);
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(

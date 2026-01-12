@@ -7,8 +7,7 @@ import 'add_tenant_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   final JsonStorageService storageService;
-  const SearchScreen({Key? key, required this.storageService})
-      : super(key: key);
+  const SearchScreen({Key? key, required this.storageService}) : super(key: key);
 
   @override
   _SearchScreenState createState() => _SearchScreenState();
@@ -58,45 +57,49 @@ class _SearchScreenState extends State<SearchScreen>
     final query = _searchController.text.toLowerCase();
     bool showTenantsMode = _tabController.index == 4;
 
+    debugPrint('===== SEARCH =====');
+    debugPrint('Query: "$query"');
+    debugPrint('Tab index: ${_tabController.index}');
+    debugPrint('Filter: $_selectedFilter');
+    debugPrint('Total rooms: ${allRooms.length}');
+
     setState(() {
       // Common: Search tenants by name (used in both modes)
       if (query.isNotEmpty) {
         _searchedTenants = allTenants
             .where((tenant) => tenant.name.toLowerCase().contains(query))
             .toList();
+        debugPrint('Matching tenants: ${_searchedTenants.length}');
       } else {
         _searchedTenants = showTenantsMode ? allTenants : [];
       }
 
       if (showTenantsMode) {
         // In Tenants mode, display search results
+        debugPrint('Tenants mode - showing ${_searchedTenants.length} tenants');
       } else {
-        // In Rooms mode, use tenant IDs to filter rooms
-        final matchingTenantIds = _searchedTenants
-            .map((tenant) => tenant.id)
-            .toSet();
-        
-        if (matchingTenantIds.isNotEmpty) {
-          _selectedTenants = matchingTenantIds;
-        } else if (query.isEmpty) {
-          _selectedTenants.clear();
-        }
-
+        // In Rooms mode, search by room OR tenant
         _searchResults = allRooms.where((room) {
           // Filter by search query (room number, room type)
-          final matchesQuery = room.roomNumber.toLowerCase().contains(query) ||
+          final matchesRoomSearch = room.roomNumber.toLowerCase().contains(query) ||
               room.roomType.toLowerCase().contains(query);
 
-          // Filter by status
+          // Check if room's tenant matches searched tenant name
+          final matchesTenantSearch = _searchedTenants.any((t) => t.id == room.currentTenant);
+
+          // Filter by status tab
           final matchesFilter =
               _selectedFilter.isEmpty || _selectedFilter == 'All' || room.status == _selectedFilter;
 
-          // Filter by tenant (using tenant ID)
-          final matchesTenant = _selectedTenants.isEmpty || 
-              (room.currentTenant != null && _selectedTenants.contains(room.currentTenant));
-
-          return (matchesQuery || matchesTenant) && matchesFilter && matchesTenant;
+          // Match if: (room search OR tenant search OR no search) AND status filter
+          final matchesSearch = query.isEmpty || matchesRoomSearch || matchesTenantSearch;
+          
+          return matchesSearch && matchesFilter;
         }).toList();
+        debugPrint('Search results: ${_searchResults.length} rooms');
+        if (_searchResults.isNotEmpty) {
+          debugPrint('First result: ${_searchResults.first.roomNumber}');
+        }
       }
     });
   }
@@ -303,6 +306,10 @@ class _SearchScreenState extends State<SearchScreen>
                             onPressed: () {
                               _showDeleteConfirmation('${tenant.name}', () async {
                                 await widget.storageService.deleteTenant(tenant.id);
+                                setState(() {
+                                  _allRoomsFuture = widget.storageService.getRooms();
+                                  _allTenantsFuture = widget.storageService.getTenants();
+                                });
                                 _performSearch();
                                 if (mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -478,18 +485,18 @@ class _SearchScreenState extends State<SearchScreen>
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    room.roomType,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
                     ),
-                  ),
-                ],
-              ),
-              Container(
+                    const SizedBox(height: 4),
+                    Text(
+                      room.roomType,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
@@ -578,6 +585,10 @@ class _SearchScreenState extends State<SearchScreen>
                       ),
                     ).then((result) {
                       if (result == true) {
+                        setState(() {
+                          _allRoomsFuture = widget.storageService.getRooms();
+                          _allTenantsFuture = widget.storageService.getTenants();
+                        });
                         _performSearch();
                       }
                     });
@@ -595,6 +606,10 @@ class _SearchScreenState extends State<SearchScreen>
                   onPressed: () {
                     _showDeleteConfirmation('Room ${room.roomNumber}', () async {
                       await widget.storageService.deleteRoom(room.id);
+                      setState(() {
+                        _allRoomsFuture = widget.storageService.getRooms();
+                        _allTenantsFuture = widget.storageService.getTenants();
+                      });
                       _performSearch();
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -617,8 +632,8 @@ class _SearchScreenState extends State<SearchScreen>
               ],
             ),
           ),
-          ],
-        ),
+        ],
+      ),
     );
   }
 }

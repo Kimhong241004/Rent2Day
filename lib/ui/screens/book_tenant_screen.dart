@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import '../../models/tenant.dart';
 import '../../models/room.dart';
-import '../../data/json_storage_service.dart';
 import '../widgets/index.dart';
 
 class BookTenantScreen extends StatefulWidget {
-  final JsonStorageService storageService;
-  const BookTenantScreen({Key? key, required this.storageService})
-      : super(key: key);
+  const BookTenantScreen({Key? key}) : super(key: key);
 
   @override
   _BookTenantScreenState createState() => _BookTenantScreenState();
@@ -54,8 +50,11 @@ class _BookTenantScreenState extends State<BookTenantScreen> {
     }
 
     // Check if room is already occupied
-    final rooms = await widget.storageService.getRooms();
-    final tenants = await widget.storageService.getTenants();
+    // TODO: Replace with actual data sources
+    // final rooms = await widget.storageService.getRooms();
+    // final tenants = await widget.storageService.getTenants();
+    final rooms = [];
+    final tenants = [];
     
     final selectedRoom = rooms.firstWhere(
       (room) => room.roomNumber == _roomCtrl.text.trim(),
@@ -103,14 +102,15 @@ class _BookTenantScreenState extends State<BookTenantScreen> {
       currentTenant: tenant.id,
     );
 
-    widget.storageService.addTenant(tenant).then((_) {
-      widget.storageService.updateRoom(updatedRoom).then((_) {
-        Navigator.pop(context, true);
-      });
-    });
+    // TODO: Replace with actual save logic
+    // widget.storageService.addTenant(tenant).then((_) {
+    //   widget.storageService.updateRoom(updatedRoom).then((_) {
+    Navigator.pop(context, true);
+    //   });
+    // });
   }
 
-  Widget _buildTextField(String label, String icon, TextEditingController controller,
+  Widget _buildTextField(String label, IconData icon, TextEditingController controller,
       {String? Function(String?)? validator, TextInputType keyboardType = TextInputType.text}) {
     return buildTextField(
       controller: controller,
@@ -119,7 +119,6 @@ class _BookTenantScreenState extends State<BookTenantScreen> {
       icon: icon,
       keyboardType: keyboardType,
       validator: validator,
-      isSvg: true,
     );
   }
 
@@ -151,20 +150,20 @@ class _BookTenantScreenState extends State<BookTenantScreen> {
                 const SizedBox(height: 20),
                 _buildTextField(
                   'Full Name',
-                  'assets/Icons/Tenants.svg',
+                  Icons.person,
                   _nameCtrl,
                 ),
                 const SizedBox(height: 16),
                 _buildTextField(
                   'Phone Number',
-                  'assets/Icons/Phone.svg',
+                  Icons.phone,
                   _phoneCtrl,
                   keyboardType: TextInputType.phone,
                 ),
                 const SizedBox(height: 16),
                 _buildTextField(
                   'Deposit',
-                  'assets/Icons/Deposit.svg',
+                  Icons.account_balance_wallet,
                   _depositCtrl,
                   keyboardType: TextInputType.number,
                   validator: (value) {
@@ -178,7 +177,7 @@ class _BookTenantScreenState extends State<BookTenantScreen> {
                 const SizedBox(height: 16),
                 _buildTextField(
                   'Room Number',
-                  'assets/Icons/Rooms.svg',
+                  Icons.meeting_room,
                   _roomCtrl,
                 ),
                 const SizedBox(height: 16),
@@ -192,11 +191,7 @@ class _BookTenantScreenState extends State<BookTenantScreen> {
                           : 'Check IN: ${_checkInDate!.toLocal().toString().split(' ')[0]}',
                       prefixIcon: Padding(
                         padding: const EdgeInsets.all(12.0),
-                        child: SvgPicture.asset(
-                          'assets/Icons/Calendar.svg',
-                          width: 24,
-                          height: 24,
-                        ),
+                        child: const Icon(Icons.calendar_today, color: Colors.grey),
                       ),
                       prefixIconConstraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),

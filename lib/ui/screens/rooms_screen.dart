@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import '../../models/room.dart';
 import '../../models/tenant.dart';
 import '../../data/json_storage_service.dart';
@@ -9,6 +8,7 @@ import 'tenant_details_screen.dart';
 
 class RoomsScreen extends StatefulWidget {
   final JsonStorageService storageService;
+  
   const RoomsScreen({Key? key, required this.storageService}) : super(key: key);
 
   @override
@@ -43,15 +43,22 @@ class _RoomsScreenState extends State<RoomsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Map<String, dynamic>>(
-      future: _roomsAndTenantsFuture,
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('Rooms Dashboard', style: TextStyle(color: Colors.black, fontSize: 26, fontWeight: FontWeight.w600)),
+      ),
+      body: FutureBuilder<Map<String, dynamic>>(
+        future: _roomsAndTenantsFuture,
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-        List<Room> rooms = snapshot.data?['rooms'] ?? [];
-        List<Tenant> tenants = snapshot.data?['tenants'] ?? [];
+          List<Room> rooms = snapshot.data?['rooms'] ?? [];
+          List<Tenant> tenants = snapshot.data?['tenants'] ?? [];
 
         // Create a map for quick tenant lookup
         final tenantMap = {for (var tenant in tenants) tenant.id: tenant};
@@ -77,17 +84,10 @@ class _RoomsScreenState extends State<RoomsScreen> {
         }
         final displayFloors = _selectedFloor == 'All' ? sortedFloors : [_selectedFloor];
 
-        return Scaffold(
-          backgroundColor: Colors.white,
-          appBar: AppBar(
-            backgroundColor: Colors.white,
-            elevation: 0,
-            title: const Text('Rooms Dashboard', style: TextStyle(color: Colors.black, fontSize: 26, fontWeight: FontWeight.w600)),
-          ),
-          body: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
-              child: Column(
+        return SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+            child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 20),
@@ -268,24 +268,17 @@ class _RoomsScreenState extends State<RoomsScreen> {
                       ],
                     );
                   }).toList(),
-                ],
-              ),
-            ),
-          ),
-          floatingActionButton: MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: GestureDetector(
-              onTap: () => _showAddRoomDialog(),
-              child: SvgPicture.asset(
-                'assets/Icons/add.svg',
-                width: 40,
-                height: 40,
-                colorFilter: const ColorFilter.mode(Color(0xFF56CCF2), BlendMode.srcIn),
-              ),
+              ],
             ),
           ),
         );
-      },
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showAddRoomDialog(),
+        backgroundColor: const Color(0xFF56CCF2),
+        child: const Icon(Icons.add, color: Colors.white, size: 32),
+      ),
     );
   }
 

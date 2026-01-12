@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:uuid/uuid.dart';
 import '../../models/payment.dart';
 import '../../models/room.dart';
@@ -7,8 +6,8 @@ import '../../data/json_storage_service.dart';
 
 class AddPaymentScreen extends StatefulWidget {
   final JsonStorageService storageService;
-  const AddPaymentScreen({Key? key, required this.storageService})
-      : super(key: key);
+  
+  const AddPaymentScreen({Key? key, required this.storageService}) : super(key: key);
 
   @override
   _AddPaymentScreenState createState() => _AddPaymentScreenState();
@@ -29,9 +28,10 @@ class _AddPaymentScreenState extends State<AddPaymentScreen> {
   }
 
   void _loadRooms() async {
-    final rooms = await widget.storageService.getRooms();
+    // TODO: Replace with actual data source
+    // final rooms = await widget.storageService.getRooms();
     setState(() {
-      _availableRooms = rooms;
+      _availableRooms = [];
     });
   }
 
@@ -55,9 +55,10 @@ class _AddPaymentScreenState extends State<AddPaymentScreen> {
     String tenantName = 'No Tenant';
     if (selectedRoom.currentTenant != null) {
       try {
-        final tenants = await widget.storageService.getTenants();
-        final tenant = tenants.firstWhere((t) => t.id == selectedRoom.currentTenant);
-        tenantName = tenant.name;
+        // TODO: Replace with actual data source
+        // final tenants = await widget.storageService.getTenants();
+        // final tenant = tenants.firstWhere((t) => t.id == selectedRoom.currentTenant);
+        // tenantName = tenant.name;
       } catch (e) {
         tenantName = 'Unknown Tenant';
       }
@@ -73,14 +74,18 @@ class _AddPaymentScreenState extends State<AddPaymentScreen> {
       isPaid: _markAsPaid,
     );
 
-    widget.storageService.addPayment(payment).then((_) {
-      Navigator.pop(context, true);
-    }).catchError((e) {
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
-    });
+    // TODO: Replace with actual save logic
+    // widget.storageService.addPayment(payment).then((_) {
+    //   Navigator.pop(context, true);
+    // }).catchError((e) {
+    //   setState(() => _isLoading = false);
+    //   ScaffoldMessenger.of(context).showSnackBar(
+    //     SnackBar(content: Text('Error: $e')),
+    //   );
+    // });
+    
+    // Temporary: Just navigate back until storage is implemented
+    Navigator.pop(context, true);
   }
 
   @override
@@ -115,11 +120,7 @@ class _AddPaymentScreenState extends State<AddPaymentScreen> {
                   labelText: 'Select Rooms',
                   prefixIcon: Padding(
                     padding: const EdgeInsets.all(12.0),
-                    child: SvgPicture.asset(
-                      'assets/Icons/Rooms.svg',
-                      width: 24,
-                      height: 24,
-                    ),
+                    child: const Icon(Icons.meeting_room, color: Colors.grey),
                   ),
                   prefixIconConstraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),

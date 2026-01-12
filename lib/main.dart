@@ -1,32 +1,24 @@
 import 'package:flutter/material.dart';
 import 'ui/screens/home_screen.dart';
-import 'data/json_storage_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final storageService = JsonStorageService();
-  await storageService.init();
-  runApp(RentManagerApp(storageService: storageService));
+  runApp(const RentManagerApp());
 }
 
 class RentManagerApp extends StatelessWidget {
-  final JsonStorageService storageService;
-  const RentManagerApp({Key? key, required this.storageService}) : super(key: key);
+  const RentManagerApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Rent Manager',
       theme: ThemeData(
-        useMaterial3: true,
         primarySwatch: Colors.blue,
-        primaryColor: Colors.blue,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.blue,
-          elevation: 0,
-        ),
+        brightness: Brightness.light,
+        scaffoldBackgroundColor: Colors.white,
       ),
-      home: HomeScreen(storageService: storageService),
+      home: const HomeScreen(),
       debugShowCheckedModeBanner: false,
     );
   }

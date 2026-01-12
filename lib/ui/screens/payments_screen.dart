@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import '../../models/payment.dart';
 import '../../data/json_storage_service.dart';
 import 'add_payment_screen.dart';
 
 class PaymentsScreen extends StatefulWidget {
   final JsonStorageService storageService;
+  
   const PaymentsScreen({Key? key, required this.storageService}) : super(key: key);
 
   @override
@@ -332,12 +332,7 @@ class _PaymentsScreenState extends State<PaymentsScreen>
                   }
                 });
               },
-              child: SvgPicture.asset(
-                'assets/Icons/add.svg',
-                width: 40,
-                height: 40,
-                colorFilter: const ColorFilter.mode(Color(0xFF56CCF2), BlendMode.srcIn),
-              ),
+              child: const Icon(Icons.add, color: Color(0xFF56CCF2), size: 40),
             ),
           ),
         );

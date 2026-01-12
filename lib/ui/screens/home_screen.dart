@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import '../../data/json_storage_service.dart';
 import 'rooms_screen.dart';
 import 'search_screen.dart';
@@ -7,8 +6,7 @@ import 'tenants_screen.dart';
 import 'payments_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  final JsonStorageService storageService;
-  const HomeScreen({Key? key, required this.storageService}) : super(key: key);
+  const HomeScreen({Key? key}) : super(key: key);
 
   @override
   _HomeScreenState createState() => _HomeScreenState();
@@ -17,6 +15,10 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   // Navigation State
   int _selectedIndex = 0;
+  
+  // Storage service
+  final JsonStorageService _storageService = JsonStorageService();
+  bool _isInitialized = false; // Set to false until storage is initialized
 
   // Data variables
   int totalRooms = 0;
@@ -29,57 +31,83 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadDashboardData();
+    _initializeAndLoad();
+  }
+  
+  Future<void> _initializeAndLoad() async {
+    try {
+      await _storageService.init();
+      debugPrint('Storage initialized successfully');
+      await _loadDashboardData();
+    } catch (e) {
+      debugPrint('Initialization error: $e');
+      // Continue anyway - storage might not work on all platforms
+    } finally {
+      // Always show UI
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+        });
+      }
+    }
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Refresh dashboard data every time the screen is shown
-    _loadDashboardData();
+    // Refresh dashboard data only if initialized
+    if (_isInitialized) {
+      _loadDashboardData();
+    }
   }
 
   Future<void> _loadDashboardData() async {
-    final rooms = await widget.storageService.getRooms();
-    final payments = await widget.storageService.getPayments();
+    if (!_isInitialized) return; // Don't load if not initialized
+    
+    try {
+      final rooms = await _storageService.getRooms();
+      final payments = await _storageService.getPayments();
 
-    int available = 0;
-    int occupied = 0;
-    int maintenance = 0;
+      int available = 0;
+      int occupied = 0;
+      int maintenance = 0;
 
-    for (var room in rooms) {
-      if (room.status == 'Available') {
-        available++;
-      } else if (room.status == 'Occupied') {
-        occupied++;
-      } else if (room.status == 'Maintenance') {
-        maintenance++;
-      }
-    }
-
-    // Calculate total rent collected (all payments that are paid)
-    double totalCollected = 0.0;
-    double thisMonth = 0.0;
-    final now = DateTime.now();
-
-    for (var payment in payments) {
-      if (payment.isPaid) {
-        totalCollected += payment.amount;
-        // Check if payment is from this month
-        if (payment.date.year == now.year && payment.date.month == now.month) {
-          thisMonth += payment.amount;
+      for (var room in rooms) {
+        if (room.status == 'Available') {
+          available++;
+        } else if (room.status == 'Occupied') {
+          occupied++;
+        } else if (room.status == 'Maintenance') {
+          maintenance++;
         }
       }
-    }
 
-    setState(() {
-      totalRooms = rooms.length;
-      availableRooms = available;
-      occupiedRooms = occupied;
-      maintenanceRooms = maintenance;
-      totalRentCollected = totalCollected;
-      thisMonthRent = thisMonth;
-    });
+      // Calculate total rent collected (all payments that are paid)
+      double totalCollected = 0.0;
+      double thisMonth = 0.0;
+      final now = DateTime.now();
+
+      for (var payment in payments) {
+        if (payment.isPaid) {
+          totalCollected += payment.amount;
+          // Check if payment is from this month
+          if (payment.date.year == now.year && payment.date.month == now.month) {
+            thisMonth += payment.amount;
+          }
+        }
+      }
+
+      setState(() {
+        totalRooms = rooms.length;
+        availableRooms = available;
+        occupiedRooms = occupied;
+        maintenanceRooms = maintenance;
+        totalRentCollected = totalCollected;
+        thisMonthRent = thisMonth;
+      });
+    } catch (e) {
+      debugPrint('Error loading dashboard data: $e');
+    }
   }
 
   @override
@@ -89,16 +117,23 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
+        title: const Text(
+          'Rent Manager',
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        ),
+        iconTheme: const IconThemeData(color: Colors.black),
       ),
-      body: _selectedIndex == 0 
-        ? _buildDashboard() 
-        : _selectedIndex == 1
-          ? SearchScreen(storageService: widget.storageService)
-          : _selectedIndex == 2
-          ? RoomsScreen(storageService: widget.storageService)
-          : _selectedIndex == 3
-          ? TenantsScreen(storageService: widget.storageService)
-          : PaymentsScreen(storageService: widget.storageService),
+      body: !_isInitialized
+        ? const Center(child: CircularProgressIndicator())
+        : _selectedIndex == 0 
+          ? _buildDashboard() 
+          : _selectedIndex == 1
+            ? SearchScreen(storageService: _storageService)
+            : _selectedIndex == 2
+              ? RoomsScreen(storageService: _storageService)
+              : _selectedIndex == 3
+                ? TenantsScreen(storageService: _storageService)
+                : PaymentsScreen(storageService: _storageService),
       bottomNavigationBar: Container(
         margin: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -109,11 +144,11 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _buildNavItem(0, 'assets/Icons/dashboard.svg', "Dashboard"),
-            _buildNavItem(1, 'assets/Icons/search.svg', "Search"),
-            _buildNavItem(2, 'assets/Icons/Rooms.svg', "Rooms"),
-            _buildNavItem(3, 'assets/Icons/Tenants.svg', "Tenants"),
-            _buildNavItem(4, 'assets/Icons/Payments.svg', "Payments"),
+            _buildNavItem(0, Icons.dashboard, "Dashboard"),
+            _buildNavItem(1, Icons.search, "Search"),
+            _buildNavItem(2, Icons.meeting_room, "Rooms"),
+            _buildNavItem(3, Icons.people, "Tenants"),
+            _buildNavItem(4, Icons.payments, "Payments"),
           ],
         ),
       ),
@@ -223,7 +258,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // Helper for Nav Items
-  Widget _buildNavItem(int index, String iconPath, String label) {
+  Widget _buildNavItem(int index, IconData icon, String label) {
     bool isSelected = _selectedIndex == index;
     return Material(
       color: Colors.transparent,
@@ -262,14 +297,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           ]
                         : [],
                   ),
-                  child: SvgPicture.asset(
-                    iconPath,
-                    width: 28,
-                    height: 28,
-                    colorFilter: ColorFilter.mode(
-                      isSelected ? Colors.white : Colors.black,
-                      BlendMode.srcIn,
-                    ),
+                  child: Icon(
+                    icon,
+                    size: 28,
+                    color: isSelected ? Colors.white : Colors.black,
                   ),
                 ),
                 const SizedBox(height: 4),

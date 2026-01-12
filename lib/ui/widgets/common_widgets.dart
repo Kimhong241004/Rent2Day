@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 /// Shared TextField widget used across multiple screens
 Widget buildTextField({
   required TextEditingController controller,
   required String label,
   required String hint,
-  required dynamic icon, // Can be IconData or String (SVG path)
+  required dynamic icon, // IconData
   TextInputType keyboardType = TextInputType.text,
   String? Function(String?)? validator,
-  bool isSvg = false,
 }) {
   return TextFormField(
     controller: controller,
@@ -21,14 +19,7 @@ Widget buildTextField({
       hintStyle: TextStyle(color: Colors.grey[400]),
       prefixIcon: Padding(
         padding: const EdgeInsets.all(12.0),
-        child: isSvg
-            ? SvgPicture.asset(
-                icon,
-                width: 24,
-                height: 24,
-                colorFilter: ColorFilter.mode(Colors.grey[600]!, BlendMode.srcIn),
-              )
-            : Icon(icon, color: Colors.grey[600]),
+        child: Icon(icon, color: Colors.grey[600]),
       ),
       prefixIconConstraints: const BoxConstraints(minWidth: 48, minHeight: 48),
       border: OutlineInputBorder(

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import '../../models/tenant.dart';
 import '../../data/json_storage_service.dart';
 import 'add_tenant_screen.dart';
@@ -8,8 +7,7 @@ import 'tenant_details_screen.dart';
 
 class TenantsScreen extends StatefulWidget {
   final JsonStorageService storageService;
-  const TenantsScreen({Key? key, required this.storageService})
-      : super(key: key);
+  const TenantsScreen({Key? key, required this.storageService}) : super(key: key);
 
   @override
   _TenantsScreenState createState() => _TenantsScreenState();
@@ -24,7 +22,17 @@ class _TenantsScreenState extends State<TenantsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _loadTenants();
+  }
+
+  void _loadTenants() {
     _tenantsFuture = widget.storageService.getTenants();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _loadTenants(); // Refresh when returning to this screen
   }
 
   @override
@@ -76,12 +84,14 @@ class _TenantsScreenState extends State<TenantsScreen>
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => AddTenantScreen(storageService: widget.storageService),
+                  builder: (context) => AddTenantScreen(
+                    storageService: widget.storageService,
+                  ),
                 ),
               ).then((result) {
                 if (result == true) {
                   setState(() {
-                    _tenantsFuture = widget.storageService.getTenants();
+                    _loadTenants();
                   });
                 }
               });
@@ -90,23 +100,18 @@ class _TenantsScreenState extends State<TenantsScreen>
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => BookTenantScreen(storageService: widget.storageService),
+                  builder: (context) => const BookTenantScreen(),
                 ),
               ).then((result) {
                 if (result == true) {
                   setState(() {
-                    _tenantsFuture = widget.storageService.getTenants();
+                    _loadTenants();
                   });
                 }
               });
             }
           },
-          child: SvgPicture.asset(
-            'assets/Icons/add.svg',
-            width: 40,
-            height: 40,
-            colorFilter: const ColorFilter.mode(Color(0xFF56CCF2), BlendMode.srcIn),
-          ),
+          child: const Icon(Icons.add, color: Color(0xFF56CCF2), size: 40),
         ),
       ),
     );
@@ -182,12 +187,7 @@ class _TenantsScreenState extends State<TenantsScreen>
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            SvgPicture.asset(
-                              'assets/Icons/Phone.svg',
-                              width: 16,
-                              height: 16,
-                              colorFilter: const ColorFilter.mode(Colors.grey, BlendMode.srcIn),
-                            ),
+                            const Icon(Icons.phone, size: 16, color: Colors.grey),
                             const SizedBox(width: 4),
                             Text(tenant.phone, style: const TextStyle(fontSize: 12)),
                           ],
@@ -198,12 +198,7 @@ class _TenantsScreenState extends State<TenantsScreen>
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            SvgPicture.asset(
-                              'assets/Icons/Rooms.svg',
-                              width: 16,
-                              height: 16,
-                              colorFilter: const ColorFilter.mode(Colors.grey, BlendMode.srcIn),
-                            ),
+                            const Icon(Icons.meeting_room, size: 16, color: Colors.grey),
                             const SizedBox(width: 4),
                             Text('Room ${tenant.assignedRoom}', style: const TextStyle(fontSize: 12)),
                           ],
@@ -214,12 +209,7 @@ class _TenantsScreenState extends State<TenantsScreen>
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            SvgPicture.asset(
-                              'assets/Icons/Floor.svg',
-                              width: 16,
-                              height: 16,
-                              colorFilter: const ColorFilter.mode(Colors.grey, BlendMode.srcIn),
-                            ),
+                            const Icon(Icons.layers, size: 16, color: Colors.grey),
                             const SizedBox(width: 4),
                             Text('Floor $floor', style: const TextStyle(fontSize: 12)),
                           ],
@@ -241,7 +231,7 @@ class _TenantsScreenState extends State<TenantsScreen>
                       // If tenant was edited, refresh the data
                       if (result == true) {
                         setState(() {
-                          _tenantsFuture = widget.storageService.getTenants();
+                          _loadTenants();
                         });
                       }
                     });

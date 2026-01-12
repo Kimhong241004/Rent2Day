@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:uuid/uuid.dart';
 import '../../models/room.dart';
 import '../../data/json_storage_service.dart';
@@ -7,6 +6,7 @@ import '../../data/json_storage_service.dart';
 class AddRoomScreen extends StatefulWidget {
   final JsonStorageService storageService;
   final Room? roomToEdit; // null for add mode, Room object for edit mode
+  
   const AddRoomScreen({
     Key? key,
     required this.storageService,
@@ -89,7 +89,7 @@ class _AddRoomScreenState extends State<AddRoomScreen> {
                 controller: _roomNumberCtrl,
                 label: 'Room Number',
                 hint: 'Enter room number',
-                iconPath: 'assets/Icons/Rooms.svg',
+                icon: Icons.meeting_room,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Room number is required';
@@ -103,7 +103,7 @@ class _AddRoomScreenState extends State<AddRoomScreen> {
                 controller: _floorCtrl,
                 label: 'Floor Number',
                 hint: 'Enter floor number',
-                iconPath: 'assets/Icons/Floor.svg',
+                icon: Icons.layers,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Floor number is required';
@@ -117,7 +117,7 @@ class _AddRoomScreenState extends State<AddRoomScreen> {
                 controller: _rentCtrl,
                 label: 'Monthly Rent',
                 hint: 'Enter monthly rent',
-                iconPath: 'assets/Icons/Rent.svg',
+                icon: Icons.attach_money,
                 keyboardType: TextInputType.number,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -135,7 +135,7 @@ class _AddRoomScreenState extends State<AddRoomScreen> {
                 controller: _depositCtrl,
                 label: 'Deposit Amount',
                 hint: 'Enter deposit required',
-                iconPath: 'assets/Icons/Deposit.svg',
+                icon: Icons.account_balance_wallet,
                 keyboardType: TextInputType.number,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -153,7 +153,7 @@ class _AddRoomScreenState extends State<AddRoomScreen> {
                 controller: _sizeCtrl,
                 label: 'Size (Suitable)',
                 hint: 'e.g., 1BHK, 2BHK, Studio',
-                iconPath: 'assets/Icons/1p.svg',
+                icon: Icons.groups,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Size is required';
@@ -209,7 +209,7 @@ class _AddRoomScreenState extends State<AddRoomScreen> {
     required TextEditingController controller,
     required String label,
     required String hint,
-    required String iconPath,
+    required IconData icon,
     TextInputType keyboardType = TextInputType.text,
     String? Function(String?)? validator,
   }) {
@@ -222,12 +222,7 @@ class _AddRoomScreenState extends State<AddRoomScreen> {
         hintStyle: TextStyle(color: Colors.grey[400]),
         prefixIcon: Padding(
           padding: const EdgeInsets.all(12.0),
-          child: SvgPicture.asset(
-            iconPath,
-            width: 24,
-            height: 24,
-            colorFilter: ColorFilter.mode(Colors.grey[600]!, BlendMode.srcIn),
-          ),
+          child: Icon(icon, color: Colors.grey[600]),
         ),
         prefixIconConstraints: const BoxConstraints(minWidth: 48, minHeight: 48),
         border: OutlineInputBorder(

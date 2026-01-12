@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:uuid/uuid.dart';
 import '../../models/tenant.dart';
 import '../../models/room.dart';
+import '../../models/payment.dart';
 import '../../data/json_storage_service.dart';
 import '../widgets/index.dart';
 
@@ -81,7 +81,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
     }).toList();
     
     setState(() {
-      _availableRooms = availableRooms;
+      _availableRooms = availableRooms.cast<Room>();
       // If we're editing and the current room is no longer available, keep it selected
       if (_selectedRoom.isEmpty && availableRooms.isNotEmpty) {
         _selectedRoom = availableRooms.first.roomNumber;
@@ -128,7 +128,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
                 controller: _nameCtrl,
                 label: 'Full Name',
                 hint: 'Enter tenant name',
-                iconPath: 'assets/Icons/Tenants.svg',
+                icon: Icons.person,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Full name is required';
@@ -142,7 +142,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
                 controller: _nationalIdCtrl,
                 label: 'National ID',
                 hint: 'Enter national ID',
-                iconPath: 'assets/Icons/ID-Card.svg',
+                icon: Icons.badge,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'National ID is required';
@@ -156,7 +156,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
                 controller: _phoneCtrl,
                 label: 'Phone Number',
                 hint: 'Enter phone number',
-                iconPath: 'assets/Icons/Phone.svg',
+                icon: Icons.phone,
                 keyboardType: TextInputType.phone,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -171,7 +171,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
                 controller: _depositCtrl,
                 label: 'Deposit',
                 hint: 'Enter deposit amount',
-                iconPath: 'assets/Icons/Deposit.svg',
+                icon: Icons.account_balance_wallet,
                 keyboardType: TextInputType.number,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -240,7 +240,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
     required TextEditingController controller,
     required String label,
     required String hint,
-    required String iconPath,
+    required IconData icon,
     TextInputType keyboardType = TextInputType.text,
     String? Function(String?)? validator,
   }) {
@@ -248,10 +248,9 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
       controller: controller,
       label: label,
       hint: hint,
-      icon: iconPath,
+      icon: icon,
       keyboardType: keyboardType,
       validator: validator,
-      isSvg: true,
     );
   }
 
@@ -314,12 +313,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
         decoration: InputDecoration(
           prefixIcon: Padding(
             padding: const EdgeInsets.all(12.0),
-            child: SvgPicture.asset(
-              'assets/Icons/Rooms.svg',
-              width: 24,
-              height: 24,
-              colorFilter: ColorFilter.mode(Colors.grey[600]!, BlendMode.srcIn),
-            ),
+            child: Icon(Icons.meeting_room, color: Colors.grey[600]),
           ),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
@@ -473,6 +467,18 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
             currentTenant: newTenant.id,
           );
           await widget.storageService.updateRoom(updatedRoom);
+
+          // Auto-create first month's payment (marked as paid)
+          final firstPayment = Payment(
+            id: const Uuid().v4(),
+            roomNumber: _selectedRoom,
+            tenantName: newTenant.name,
+            tenantPhone: newTenant.phone,
+            amount: roomToUpdate.rentAmount,
+            date: _selectedMoveInDate,
+            isPaid: true,
+          );
+          await widget.storageService.addPayment(firstPayment);
         }
 
         if (mounted) {
