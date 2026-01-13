@@ -28,10 +28,9 @@ class _AddPaymentScreenState extends State<AddPaymentScreen> {
   }
 
   void _loadRooms() async {
-    // TODO: Replace with actual data source
-    // final rooms = await widget.storageService.getRooms();
+    final rooms = await widget.storageService.getRooms();
     setState(() {
-      _availableRooms = [];
+      _availableRooms = rooms;
     });
   }
 
@@ -55,10 +54,9 @@ class _AddPaymentScreenState extends State<AddPaymentScreen> {
     String tenantName = 'No Tenant';
     if (selectedRoom.currentTenant != null) {
       try {
-        // TODO: Replace with actual data source
-        // final tenants = await widget.storageService.getTenants();
-        // final tenant = tenants.firstWhere((t) => t.id == selectedRoom.currentTenant);
-        // tenantName = tenant.name;
+        final tenants = await widget.storageService.getTenants();
+        final tenant = tenants.firstWhere((t) => t.id == selectedRoom.currentTenant);
+        tenantName = tenant.name;
       } catch (e) {
         tenantName = 'Unknown Tenant';
       }
@@ -74,18 +72,14 @@ class _AddPaymentScreenState extends State<AddPaymentScreen> {
       isPaid: _markAsPaid,
     );
 
-    // TODO: Replace with actual save logic
-    // widget.storageService.addPayment(payment).then((_) {
-    //   Navigator.pop(context, true);
-    // }).catchError((e) {
-    //   setState(() => _isLoading = false);
-    //   ScaffoldMessenger.of(context).showSnackBar(
-    //     SnackBar(content: Text('Error: $e')),
-    //   );
-    // });
-    
-    // Temporary: Just navigate back until storage is implemented
-    Navigator.pop(context, true);
+    widget.storageService.addPayment(payment).then((_) {
+      Navigator.pop(context, true);
+    }).catchError((e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    });
   }
 
   @override

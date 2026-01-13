@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../models/tenant.dart';
 import '../../models/room.dart';
+import '../../data/json_storage_service.dart';
 import '../widgets/index.dart';
 
 class BookTenantScreen extends StatefulWidget {
-  const BookTenantScreen({Key? key}) : super(key: key);
+  final JsonStorageService storageService;
+  
+  const BookTenantScreen({Key? key, required this.storageService}) : super(key: key);
 
   @override
   _BookTenantScreenState createState() => _BookTenantScreenState();
@@ -50,11 +53,8 @@ class _BookTenantScreenState extends State<BookTenantScreen> {
     }
 
     // Check if room is already occupied
-    // TODO: Replace with actual data sources
-    // final rooms = await widget.storageService.getRooms();
-    // final tenants = await widget.storageService.getTenants();
-    final rooms = [];
-    final tenants = [];
+    final rooms = await widget.storageService.getRooms();
+    final tenants = await widget.storageService.getTenants();
     
     final selectedRoom = rooms.firstWhere(
       (room) => room.roomNumber == _roomCtrl.text.trim(),
@@ -102,12 +102,9 @@ class _BookTenantScreenState extends State<BookTenantScreen> {
       currentTenant: tenant.id,
     );
 
-    // TODO: Replace with actual save logic
-    // widget.storageService.addTenant(tenant).then((_) {
-    //   widget.storageService.updateRoom(updatedRoom).then((_) {
+    await widget.storageService.addTenant(tenant);
+    await widget.storageService.updateRoom(updatedRoom);
     Navigator.pop(context, true);
-    //   });
-    // });
   }
 
   Widget _buildTextField(String label, IconData icon, TextEditingController controller,

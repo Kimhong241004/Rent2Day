@@ -324,8 +324,7 @@ class _TenantDetailsScreenState extends State<TenantDetailsScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
-              // TODO: Replace with actual delete logic
-              // await widget.storageService.deleteTenant(tenant.id);
+              await widget.storageService.deleteTenant(tenant.id);
               Navigator.pop(dialogContext);
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(

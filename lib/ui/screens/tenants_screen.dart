@@ -100,7 +100,9 @@ class _TenantsScreenState extends State<TenantsScreen>
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const BookTenantScreen(),
+                  builder: (context) => BookTenantScreen(
+                    storageService: widget.storageService,
+                  ),
                 ),
               ).then((result) {
                 if (result == true) {
