@@ -52,9 +52,8 @@ class _BookTenantScreenState extends State<BookTenantScreen> {
       return;
     }
 
-    // Check if room is already occupied
+    // Check if room exists (no status restrictions)
     final rooms = await widget.storageService.getRooms();
-    final tenants = await widget.storageService.getTenants();
     
     final selectedRoom = rooms.firstWhere(
       (room) => room.roomNumber == _roomCtrl.text.trim(),
@@ -64,18 +63,6 @@ class _BookTenantScreenState extends State<BookTenantScreen> {
     if (selectedRoom == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Room not found')),
-      );
-      return;
-    }
-
-    // Check if room has an active tenant (tenant without moveOutDate)
-    final hasActiveTenant = tenants.any((tenant) =>
-        tenant.assignedRoom == _roomCtrl.text.trim() &&
-        tenant.moveOutDate == null);
-
-    if (selectedRoom.status == 'Occupied' || hasActiveTenant) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('This room is already occupied. Please select an available room.')),
       );
       return;
     }
