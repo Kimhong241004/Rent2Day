@@ -402,13 +402,19 @@ class _SearchScreenState extends State<SearchScreen>
               ),
             )
           else
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _searchResults.length,
-              itemBuilder: (context, index) {
-                final room = _searchResults[index];
-                return _buildRoomCard(room);
+            FutureBuilder<List<Tenant>>(
+              future: _allTenantsFuture,
+              builder: (context, tenantSnapshot) {
+                final allTenants = tenantSnapshot.data ?? [];
+                return ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _searchResults.length,
+                  itemBuilder: (context, index) {
+                    final room = _searchResults[index];
+                    return _buildRoomCard(room, allTenants);
+                  },
+                );
               },
             ),
         ],
@@ -452,8 +458,19 @@ class _SearchScreenState extends State<SearchScreen>
     );
   }
 
-  Widget _buildRoomCard(Room room) {
+  Widget _buildRoomCard(Room room, List<Tenant> allTenants) {
     final isOccupied = room.status == 'Occupied';
+    
+    // Find tenant name by ID
+    String tenantName = 'N/A';
+    if (room.currentTenant != null) {
+      try {
+        final tenant = allTenants.firstWhere((t) => t.id == room.currentTenant);
+        tenantName = tenant.name;
+      } catch (e) {
+        tenantName = 'Unknown Tenant';
+      }
+    }
     
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -554,7 +571,7 @@ class _SearchScreenState extends State<SearchScreen>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      room.currentTenant ?? 'N/A',
+                      tenantName,
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
