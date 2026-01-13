@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../models/payment.dart';
 import '../../data/json_storage_service.dart';
 import 'add_payment_screen.dart';
 
 class PaymentsScreen extends StatefulWidget {
   final JsonStorageService storageService;
-  
-  const PaymentsScreen({Key? key, required this.storageService}) : super(key: key);
+
+  const PaymentsScreen({Key? key, required this.storageService})
+    : super(key: key);
 
   @override
   _PaymentsScreenState createState() => _PaymentsScreenState();
@@ -15,18 +17,13 @@ class PaymentsScreen extends StatefulWidget {
 class _PaymentsScreenState extends State<PaymentsScreen>
     with SingleTickerProviderStateMixin {
   late Future<List<Payment>> _paymentsFuture;
-  DateTime _currentMonth = DateTime.now();
   late TabController _tabController;
-  final List<String> _filterOptions = ['All', 'Paid', 'Unpaid', 'Last3M'];
 
   @override
   void initState() {
     super.initState();
     _paymentsFuture = widget.storageService.getPayments();
     _tabController = TabController(length: 4, vsync: this);
-    _tabController.addListener(() {
-      setState(() {});
-    });
   }
 
   @override
@@ -35,39 +32,40 @@ class _PaymentsScreenState extends State<PaymentsScreen>
     super.dispose();
   }
 
-  void _previousMonth() {
-    setState(() {
-      _currentMonth = DateTime(_currentMonth.year, _currentMonth.month - 1);
-    });
-  }
+  List<Payment> _filterPayments(List<Payment> payments, int tabIndex) {
+    final now = DateTime.now();
+    final threeMonthsAgo = DateTime(now.year, now.month - 3, now.day);
 
-  void _nextMonth() {
-    setState(() {
-      _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + 1);
-    });
-  }
-
-  List<Payment> _filterPayments(List<Payment> payments) {
-    List<Payment> filtered = payments.where((p) {
-      return p.date.year == _currentMonth.year && p.date.month == _currentMonth.month;
-    }).toList();
-
-    String selectedFilter = _filterOptions[_tabController.index];
-    if (selectedFilter == 'Paid') {
-      filtered = filtered.where((p) => p.isPaid).toList();
-    } else if (selectedFilter == 'Unpaid') {
-      filtered = filtered.where((p) => !p.isPaid).toList();
+    switch (tabIndex) {
+      case 0: // All
+        return payments;
+      case 1: // Unpaid
+        return payments.where((p) => !p.isPaid).toList();
+      case 2: // Paid
+        return payments.where((p) => p.isPaid).toList();
+      case 3: // Last 3 Months
+        return payments.where((p) => p.date.isAfter(threeMonthsAgo)).toList();
+      default:
+        return payments;
     }
-
-    return filtered;
   }
 
-  double _getTotalPaid(List<Payment> payments) {
-    return payments.where((p) => p.isPaid && p.date.year == _currentMonth.year && p.date.month == _currentMonth.month).fold(0, (sum, p) => sum + p.amount);
+  int _getUnpaidCount(List<Payment> payments) {
+    return payments.where((p) => !p.isPaid).length;
   }
 
-  double _getTotalUnpaid(List<Payment> payments) {
-    return payments.where((p) => !p.isPaid && p.date.year == _currentMonth.year && p.date.month == _currentMonth.month).fold(0, (sum, p) => sum + p.amount);
+  int _getPaidCount(List<Payment> payments) {
+    return payments.where((p) => p.isPaid).length;
+  }
+
+  double _getTotalAmount(List<Payment> payments) {
+    return payments.fold(0.0, (sum, p) => sum + p.amount);
+  }
+
+  void _refreshPayments() {
+    setState(() {
+      _paymentsFuture = widget.storageService.getPayments();
+    });
   }
 
   @override
@@ -82,281 +80,652 @@ class _PaymentsScreenState extends State<PaymentsScreen>
         }
 
         List<Payment> allPayments = snapshot.data ?? [];
-        double totalPaid = _getTotalPaid(allPayments);
-        double totalUnpaid = _getTotalUnpaid(allPayments);
-        List<Payment> filteredPayments = _filterPayments(allPayments);
+        int unpaidCount = _getUnpaidCount(allPayments);
+        int paidCount = _getPaidCount(allPayments);
+        List<Payment> filteredPayments = _filterPayments(
+          allPayments,
+          _tabController.index,
+        );
 
         return Scaffold(
-          backgroundColor: Colors.white,
-          body: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 8),
-                  Center(
-                    child: const Text(
-                      'Rent Payments',
-                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  // Month Navigation Card
-                  Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF56CCF2),
-                        borderRadius: BorderRadius.circular(12),
+          backgroundColor: const Color(0xFFF8F9FA),
+          appBar: AppBar(
+            elevation: 0,
+            backgroundColor: Colors.white,
+            title: const Text(
+              'Payments',
+              style: TextStyle(
+                color: Colors.black87,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(
+                  Icons.add_circle_outline,
+                  color: Color(0xFF2196F3),
+                  size: 28,
+                ),
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AddPaymentScreen(
+                        storageService: widget.storageService,
                       ),
+                    ),
+                  );
+                  _refreshPayments();
+                },
+              ),
+            ],
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(56),
+              child: Container(
+                color: Colors.white,
+                child: TabBar(
+                  controller: _tabController,
+                  labelColor: const Color(0xFF2196F3),
+                  unselectedLabelColor: Colors.grey,
+                  indicatorColor: const Color(0xFF2196F3),
+                  indicatorWeight: 3,
+                  labelStyle: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  unselectedLabelStyle: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  tabs: [
+                    const Tab(text: 'All'),
+                    Tab(
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          GestureDetector(
-                            onTap: _previousMonth,
-                            child: const Icon(Icons.arrow_back_ios, color: Colors.black, size: 24),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                            child: GestureDetector(
-                              onTap: _showMonthYearPicker,
-                              child: Text(
-                                '${_monthName(_currentMonth.month)} ${_currentMonth.year}',
-                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
-                              ),
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: _nextMonth,
-                            child: const Icon(Icons.arrow_forward_ios, color: Colors.black, size: 24),
-                          ),
+                          const Text('Unpaid'),
+                          if (unpaidCount > 0) ...[
+                            const SizedBox(width: 6),
+                            _buildBadge(unpaidCount, Colors.red),
+                          ],
                         ],
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  // Summary Cards
-                  Center(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
+                    Tab(
                       child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                        Container(
-                          constraints: BoxConstraints(minWidth: MediaQuery.of(context).size.width * 0.4),
-                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            border: Border.all(color: Colors.grey[200]!),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Paid',
-                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                '\$${totalPaid.toStringAsFixed(0)}',
-                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Container(
-                          constraints: BoxConstraints(minWidth: MediaQuery.of(context).size.width * 0.4),
-                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            border: Border.all(color: Colors.grey[200]!),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Unpaid',
-                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                '\$${totalUnpaid.toStringAsFixed(0)}',
-                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  // Filter Tabs
-                  TabBar(
-                    controller: _tabController,
-                    labelColor: const Color(0xFF56CCF2),
-                    unselectedLabelColor: Colors.grey,
-                    indicatorColor: const Color(0xFF56CCF2),
-                    tabs: const [
-                      Tab(text: 'All'),
-                      Tab(text: 'Paid'),
-                      Tab(text: 'Unpaid'),
-                      Tab(text: 'Last 3M'),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  // Payment List
-                  if (filteredPayments.isEmpty)
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 32.0),
-                        child: Text(
-                          'No payments found',
-                          style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                        ),
+                          const Text('Paid'),
+                          if (paidCount > 0) ...[
+                            const SizedBox(width: 6),
+                            _buildBadge(paidCount, Colors.green),
+                          ],
+                        ],
                       ),
-                    )
-                  else
-                    ...filteredPayments.map((payment) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 16.0),
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[50],
-                            border: Border.all(color: Colors.grey[200]!),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Room ${payment.roomNumber}',
-                                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                                  ),
-                                  Text(
-                                    '\$${payment.amount.toStringAsFixed(0)}',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: payment.isPaid ? Colors.green : Colors.red,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                payment.tenantName,
-                                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                              ),
-                              Text(
-                                payment.tenantPhone,
-                                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                              ),
-                              Text(
-                                'Due for ${_monthName(payment.date.month)} ${payment.date.year}',
-                                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  GestureDetector(
-                                    onTap: () {
-                                      final updatedPayment = Payment(
-                                        id: payment.id,
-                                        roomNumber: payment.roomNumber,
-                                        tenantName: payment.tenantName,
-                                        tenantPhone: payment.tenantPhone,
-                                        amount: payment.amount,
-                                        date: payment.date,
-                                        isPaid: !payment.isPaid,
-                                      );
-                                      widget.storageService.updatePayment(updatedPayment).then((_) {
-                                        setState(() {
-                                          _paymentsFuture = widget.storageService.getPayments();
-                                        });
-                                      });
-                                    },
-                                    child: Text(
-                                      payment.isPaid ? '✓ Mark Unpaid' : '✓ Mark Paid',
-                                      style: const TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                                  GestureDetector(
-                                    onTap: () {
-                                      widget.storageService.deletePayment(payment.id).then((_) {
-                                        setState(() {
-                                          _paymentsFuture = widget.storageService.getPayments();
-                                        });
-                                      });
-                                    },
-                                    child: const Text(
-                                      '🗑 Delete',
-                                      style: TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                ],
+                    ),
+                    const Tab(text: 'Last 3M'),
+                  ],
+                  onTap: (index) {
+                    setState(() {});
+                  },
+                ),
               ),
             ),
           ),
-          floatingActionButton: MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => AddPaymentScreen(storageService: widget.storageService),
-                  ),
-                ).then((result) {
-                  if (result == true) {
-                    setState(() {
-                      _paymentsFuture = widget.storageService.getPayments();
-                    });
-                  }
-                });
-              },
-              child: const Icon(Icons.add, color: Color(0xFF56CCF2), size: 40),
-            ),
+          body: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildPaymentList(allPayments, allPayments),
+              _buildPaymentList(
+                allPayments.where((p) => !p.isPaid).toList(),
+                allPayments,
+              ),
+              _buildPaymentList(
+                allPayments.where((p) => p.isPaid).toList(),
+                allPayments,
+              ),
+              _buildPaymentList(
+                allPayments.where((p) {
+                  final now = DateTime.now();
+                  final threeMonthsAgo = DateTime(
+                    now.year,
+                    now.month - 3,
+                    now.day,
+                  );
+                  return p.date.isAfter(threeMonthsAgo);
+                }).toList(),
+                allPayments,
+              ),
+            ],
           ),
         );
       },
     );
   }
 
-  String _monthName(int month) {
-    final months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    return months[month - 1];
+  Widget _buildBadge(int count, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        count.toString(),
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
   }
 
-  void _showMonthYearPicker() async {
-    final selectedDate = await showDatePicker(
-      context: context,
-      initialDate: _currentMonth,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
-    );
-    
-    if (selectedDate != null) {
-      setState(() {
-        _currentMonth = DateTime(selectedDate.year, selectedDate.month);
-      });
+  Widget _buildPaymentList(List<Payment> payments, List<Payment> allPayments) {
+    if (payments.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.receipt_long_outlined,
+              size: 80,
+              color: Colors.grey[300],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No payments found',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      );
     }
+
+    // Sort payments by date (most recent first)
+    payments.sort((a, b) => b.date.compareTo(a.date));
+
+    final totalAmount = _getTotalAmount(payments);
+    final paidAmount = _getTotalAmount(
+      payments.where((p) => p.isPaid).toList(),
+    );
+    final unpaidAmount = _getTotalAmount(
+      payments.where((p) => !p.isPaid).toList(),
+    );
+
+    return Column(
+      children: [
+        // Summary Card
+        Container(
+          margin: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF2196F3), Color(0xFF1976D2)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0xFF2196F3).withOpacity(0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Total',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    '${payments.length} payment${payments.length != 1 ? 's' : ''}',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '\$${totalAmount.toStringAsFixed(2)}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildSummaryItem(
+                      'Paid',
+                      '\$${paidAmount.toStringAsFixed(2)}',
+                      Colors.green[300]!,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildSummaryItem(
+                      'Unpaid',
+                      '\$${unpaidAmount.toStringAsFixed(2)}',
+                      Colors.red[300]!,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        // Payment List
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: payments.length,
+            itemBuilder: (context, index) {
+              final payment = payments[index];
+              return _buildPaymentCard(payment, allPayments);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSummaryItem(String label, String amount, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            amount,
+            style: TextStyle(
+              color: color,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentCard(Payment payment, List<Payment> allPayments) {
+    final dateFormat = DateFormat('MMM dd, yyyy');
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => _showPaymentDetails(payment, allPayments),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                // Status Indicator
+                Container(
+                  width: 4,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: payment.isPaid ? Colors.green : Colors.red,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                // Payment Info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              payment.tenantName,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: payment.isPaid
+                                  ? Colors.green.withOpacity(0.1)
+                                  : Colors.red.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              payment.isPaid ? 'Paid' : 'Unpaid',
+                              style: TextStyle(
+                                color: payment.isPaid
+                                    ? Colors.green
+                                    : Colors.red,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.meeting_room_outlined,
+                            size: 16,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Room ${payment.roomNumber}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Icon(
+                            Icons.calendar_today_outlined,
+                            size: 16,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            dateFormat.format(payment.date),
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '\$${payment.amount.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF2196F3),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showPaymentDetails(Payment payment, List<Payment> allPayments) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _buildPaymentDetailsSheet(payment, allPayments),
+    );
+  }
+
+  Widget _buildPaymentDetailsSheet(Payment payment, List<Payment> allPayments) {
+    final dateFormat = DateFormat('MMMM dd, yyyy');
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(24),
+          topRight: Radius.circular(24),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Payment Details',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: payment.isPaid
+                        ? Colors.green.withOpacity(0.1)
+                        : Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    payment.isPaid ? 'Paid' : 'Unpaid',
+                    style: TextStyle(
+                      color: payment.isPaid ? Colors.green : Colors.red,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            _buildDetailRow(
+              Icons.person_outline,
+              'Tenant Name',
+              payment.tenantName,
+            ),
+            const SizedBox(height: 16),
+            _buildDetailRow(Icons.phone_outlined, 'Phone', payment.tenantPhone),
+            const SizedBox(height: 16),
+            _buildDetailRow(
+              Icons.meeting_room_outlined,
+              'Room Number',
+              payment.roomNumber,
+            ),
+            const SizedBox(height: 16),
+            _buildDetailRow(
+              Icons.calendar_today_outlined,
+              'Payment Date',
+              dateFormat.format(payment.date),
+            ),
+            const SizedBox(height: 16),
+            _buildDetailRow(
+              Icons.attach_money,
+              'Amount',
+              '\$${payment.amount.toStringAsFixed(2)}',
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      Navigator.pop(context);
+                      final updatedPayment = Payment(
+                        id: payment.id,
+                        roomNumber: payment.roomNumber,
+                        tenantName: payment.tenantName,
+                        tenantPhone: payment.tenantPhone,
+                        amount: payment.amount,
+                        date: payment.date,
+                        isPaid: !payment.isPaid,
+                      );
+                      await widget.storageService.updatePayment(updatedPayment);
+                      _refreshPayments();
+                    },
+                    icon: Icon(
+                      payment.isPaid
+                          ? Icons.cancel_outlined
+                          : Icons.check_circle_outline,
+                    ),
+                    label: Text(payment.isPaid ? 'Mark Unpaid' : 'Mark Paid'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: payment.isPaid
+                          ? Colors.orange
+                          : Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Delete Payment'),
+                        content: const Text(
+                          'Are you sure you want to delete this payment?',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.red,
+                            ),
+                            child: const Text('Delete'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirm == true) {
+                      await widget.storageService.deletePayment(payment.id);
+                      _refreshPayments();
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.all(14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Icon(Icons.delete_outline),
+                ),
+              ],
+            ),
+            SizedBox(height: MediaQuery.of(context).padding.bottom),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF2196F3).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 20, color: const Color(0xFF2196F3)),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }
